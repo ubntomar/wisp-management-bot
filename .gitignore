@@ -11,7 +11,7 @@ yarn-error.log*
 # Environment variables
 .env
 
-#whatsstapp session files
+# WhatsApp Web session and cache data
 .wwebjs_auth/
 .wwebjs_cache/
 
