@@ -27,7 +27,7 @@ El sistema permite la interacción automatizada a través de WhatsApp, facilitan
 1. Clona este repositorio:
 
    \`\`\`bash
-   git clone https://github.com/tu_usuario/whatsapp-device-control.git
+   git clone https://github.com/ubntomar/wisp-management-bot.git
    cd whatsapp-device-control
    \`\`\`
 
