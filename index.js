@@ -115,14 +115,60 @@ client.on('message', async (msg) => {
                 if (isValidIP(ip)) {
                     try {
                         const deviceInfo = await getDeviceInfo(ip);
-                        await chat.sendMessage(`Información del dispositivo (${deviceInfo.type}):\n${deviceInfo.info}`);
+                        let message = `📡 Información del dispositivo (${deviceInfo.type}):\n\n`;
+                        
+                        if (deviceInfo.type === 'mikrotik' || deviceInfo.type === 'ubiquiti') {
+                            const signalStrength = deviceInfo.info.signalStrength.match(/-\d+/);
+                            const speedMatch = deviceInfo.type === 'mikrotik' 
+                                ? deviceInfo.info.etherRate.match(/(\d+)(\w+)/)
+                                : deviceInfo.info.etherRate.match(/Speed: (\d+)Mb\/s/);
+            
+                            message += `🔗 IP: ${ip}\n`;
+                            message += `📶 Señal: ${signalStrength ? signalStrength[0] + ' dBm' : 'No disponible'}\n`;
+                            
+                            if (speedMatch) {
+                                const speed = parseInt(speedMatch[1]);
+                                const unit = deviceInfo.type === 'mikrotik' ? speedMatch[2] : 'Mb/s';
+                                message += `⚡ Velocidad de ${deviceInfo.type === 'mikrotik' ? 'ether1' : 'eth0'}: ${speed}${unit}`;
+                                if (speed === 10) {
+                                    message += ` ⚠️ ALERTA: Posible problema en la interfaz Ethernet\n`;
+                                } else {
+                                    message += `\n`;
+                                }
+                            } else {
+                                message += `⚡ Velocidad de ${deviceInfo.type === 'mikrotik' ? 'ether1' : 'eth0'}: No disponible\n`;
+                            }
+            
+                            // Añadir lista de direcciones ARP
+                            message += `\n📋 Direcciones ARP activas:\n`;
+                            if (deviceInfo.info.arpList && deviceInfo.info.arpList.length > 0) {
+                                deviceInfo.info.arpList.forEach((address, index) => {
+                                    message += `   ${index + 1}. ${address}\n`;
+                                });
+                            } else {
+                                message += `   No se encontraron direcciones ARP activas\n`;
+                            }
+                        }
+            
+                        // Añadir interpretación de la señal
+                        const signalStrength = parseInt(message.match(/-\d+/)[0]);
+                        if (!isNaN(signalStrength)) {
+                            if (signalStrength > -50) message += `\n📊 Calidad de señal: Excelente 🟢`;
+                            else if (signalStrength > -60) message += `\n📊 Calidad de señal: Muy buena 🟢`;
+                            else if (signalStrength > -70) message += `\n📊 Calidad de señal: Buena 🟡`;
+                            else if (signalStrength > -80) message += `\n📊 Calidad de señal: Regular 🟠`;
+                            else message += `\n📊 Calidad de señal: Mala 🔴`;
+                        }
+            
+                        await chat.sendMessage(message);
                     } catch (error) {
-                        await chat.sendMessage(`No se pudo obtener información del dispositivo: ${error.message}`);
+                        await chat.sendMessage(`❌ No se pudo obtener información del dispositivo: ${error.message}`);
                     }
                 } else {
-                    await chat.sendMessage(`La IP proporcionada (${ip}) no es válida.`);
+                    await chat.sendMessage(`❌ La IP proporcionada (${ip}) no es válida.`);
                 }
             }
+
         }
     } catch (error) {
         console.error('Error procesando el mensaje:', error);
@@ -279,7 +325,7 @@ async function getDeviceInfo(ip) {
             console.log(`${deviceType} response:`, response.data);
             if (response.data.success) {
                 console.log(`Successfully retrieved ${deviceType} info`);
-                return { type: deviceType, info: response.data.signalStrength };
+                return { type: deviceType, info: response.data.deviceInfo };
             }
         } catch (error) {
             console.log(`Failed ${deviceType} attempt:`, error.message);

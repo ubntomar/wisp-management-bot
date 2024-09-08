@@ -23,18 +23,56 @@ const UBIQUITI_CREDENTIALS = [
 
 console.log('Device API starting...');
 
-async function getSignalStrength(ssh, deviceType) {
-    let command;
-    if (deviceType === 'mikrotik') {
-        command = '/interface wireless registration-table print';
-    } else if (deviceType === 'ubiquiti') {
-        command = 'mca-status | grep signal';
+async function getDeviceInfo(ssh, deviceType) {
+    let info = {};
+
+    try {
+        if (deviceType === 'mikrotik') {
+            // Obtener información de señal
+            let result = await ssh.execCommand('/interface wireless registration-table print');
+            info.signalStrength = result.stdout.trim() || 'No disponible';
+
+            // Obtener rate de ether1
+            result = await ssh.execCommand('/interface ethernet monitor ether1 once do={:put ($"rate")}');
+            info.etherRate = result.stdout.trim() || 'No disponible';
+
+            // Obtener lista de direcciones ARP
+            result = await ssh.execCommand(':foreach i in=[/ip arp find where dynamic=yes and complete=yes] do={ :put [/ip arp get $i address] }');
+            info.arpList = result.stdout.trim().split('\n').filter(Boolean) || [];
+            
+
+        } else if (deviceType === 'ubiquiti') {
+            // Obtener información de señal
+            let result = await ssh.execCommand('mca-status | grep signal');
+            info.signalStrength = result.stdout.trim() || 'No disponible';
+
+            // Obtener rate de eth0
+            result = await ssh.execCommand('ethtool eth0 | grep Speed');
+            info.etherRate = result.stdout.trim() || 'No disponible';
+
+            // Obtener lista de direcciones ARP
+            console.log('Ejecutando comando ARP en Ubiquiti');
+            result = await ssh.execCommand('ip neigh show | grep -E "lladdr [0-9a-f]{2}(:[0-9a-f]{2}){5}" | grep -E "REACHABLE|STALE" | awk \'{print $1}\'');
+            console.log('Resultado del comando ARP:', result.stdout);
+            
+            info.arpList = result.stdout.trim().split('\n').filter(Boolean) || [];
+            
+            // Si el resultado está vacío, intentar un enfoque alternativo
+            if (info.arpList.length === 0) {
+                console.log('Intentando enfoque alternativo para ARP en Ubiquiti');
+                result = await ssh.execCommand('arp -e | tail -n +2 | awk \'{print $1}\'');
+                console.log('Resultado del enfoque alternativo:', result.stdout);
+                info.arpList = result.stdout.trim().split('\n').filter(Boolean) || [];
+            }
+
+        }
+    } catch (error) {
+        console.error(`Error getting device info: ${error.message}`);
+        info.error = `Error: ${error.message}`;
     }
 
-    console.log(`Executing command on ${deviceType}: ${command}`);
-    const result = await ssh.execCommand(command);
-    console.log(`Command result: ${result.stdout}`);
-    return result.stdout;
+    console.log(`Device info for ${deviceType}:`, info);
+    return info;
 }
 
 app.post('/execute-command', async (req, res) => {
@@ -66,14 +104,14 @@ app.post('/execute-command', async (req, res) => {
                     privateKey: null,
                 });
                 
-                console.log('SSH connection successful, executing command');
-                const signalStrength = await getSignalStrength(ssh, deviceType);
-                console.log('Command executed, signal strength:', signalStrength);
+                console.log('SSH connection successful, executing commands');
+                const deviceInfo = await getDeviceInfo(ssh, deviceType);
+                console.log('Commands executed, device info:', deviceInfo);
                 ssh.dispose();
                 
-                return res.json({ success: true, signalStrength });
+                return res.json({ success: true, deviceInfo });
             } catch (error) {
-                console.log(`Failed to connect with ${cred.username}: ${error.message}`);
+                console.log(`Failed to connect or execute commands with ${cred.username}: ${error.message}`);
             }
         }
         
@@ -83,6 +121,7 @@ app.post('/execute-command', async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
+
 app.get('/test', (req, res) => {
     res.json({ message: 'API is working' });
 });
