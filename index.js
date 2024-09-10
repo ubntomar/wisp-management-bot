@@ -118,50 +118,75 @@ client.on('message', async (msg) => {
                         let message = `📡 Información del dispositivo (${deviceInfo.type}):\n\n`;
                         
                         if (deviceInfo.type === 'mikrotik' || deviceInfo.type === 'ubiquiti') {
-                            const signalStrength = deviceInfo.info.signalStrength.match(/-\d+/);
-                            const speedMatch = deviceInfo.type === 'mikrotik' 
-                                ? deviceInfo.info.etherRate.match(/(\d+)(\w+)/)
-                                : deviceInfo.info.etherRate.match(/Speed: (\d+)Mb\/s/);
-            
                             message += `🔗 IP: ${ip}\n`;
-                            message += `📶 Señal: ${signalStrength ? signalStrength[0] + ' dBm' : 'No disponible'}\n`;
-                            
-                            if (speedMatch) {
-                                const speed = parseInt(speedMatch[1]);
-                                const unit = deviceInfo.type === 'mikrotik' ? speedMatch[2] : 'Mb/s';
-                                message += `⚡ Velocidad de ${deviceInfo.type === 'mikrotik' ? 'ether1' : 'eth0'}: ${speed}${unit}`;
-                                if (speed === 10) {
-                                    message += ` ⚠️ ALERTA: Posible problema en la interfaz Ethernet\n`;
+            
+                            // Manejar la información de señal
+                            if (deviceInfo.info.signalStrength && deviceInfo.info.signalStrength !== 'no such item') {
+                                const signalMatch = deviceInfo.info.signalStrength.match(/-\d+/);
+                                if (signalMatch) {
+                                    message += `📶 Señal: ${signalMatch[0]} dBm\n`;
                                 } else {
-                                    message += `\n`;
+                                    message += `📶 Señal: ${deviceInfo.info.signalStrength}\n`;
                                 }
                             } else {
-                                message += `⚡ Velocidad de ${deviceInfo.type === 'mikrotik' ? 'ether1' : 'eth0'}: No disponible\n`;
+                                message += `📶 Señal: No disponible\n`;
+                            }
+                            
+                            // Manejar la información de velocidad
+                            if (deviceInfo.info.etherRate && deviceInfo.info.etherRate !== 'no such item') {
+                                const speedMatch = deviceInfo.info.etherRate.match(/(\d+)(\w+)/);
+                                if (speedMatch) {
+                                    const speed = parseInt(speedMatch[1]);
+                                    const unit = speedMatch[2];
+                                    message += `⚡ Velocidad: ${speed}${unit}`;
+                                    if (speed === 10) {
+                                        message += ` ⚠️ ALERTA: Posible problema en la interfaz Ethernet\n`;
+                                    } else {
+                                        message += `\n`;
+                                    }
+                                } else {
+                                    message += `⚡ Velocidad: ${deviceInfo.info.etherRate}\n`;
+                                }
+                            } else {
+                                message += `⚡ Velocidad: No disponible\n`;
                             }
             
                             // Añadir lista de direcciones ARP
                             message += `\n📋 Direcciones ARP activas:\n`;
-                            if (deviceInfo.info.arpList && deviceInfo.info.arpList.length > 0) {
+                            if (deviceInfo.info.arpList && deviceInfo.info.arpList.length > 0) {    
                                 deviceInfo.info.arpList.forEach((address, index) => {
                                     message += `   ${index + 1}. ${address}\n`;
                                 });
+                                // Añadir resumen si hay más de 10 IPs
+                                if (deviceInfo.info.ipSummary) {
+                                    message += `\n📊 Resumen de IPs por subred:\n`;
+                                    deviceInfo.info.ipSummary.forEach(summary => {
+                                        message += `   ${summary}\n`;
+                                    });
+                                }
+
                             } else {
                                 message += `   No se encontraron direcciones ARP activas\n`;
                             }
+                        
                         }
             
-                        // Añadir interpretación de la señal
-                        const signalStrength = parseInt(message.match(/-\d+/)[0]);
-                        if (!isNaN(signalStrength)) {
-                            if (signalStrength > -50) message += `\n📊 Calidad de señal: Excelente 🟢`;
-                            else if (signalStrength > -60) message += `\n📊 Calidad de señal: Muy buena 🟢`;
-                            else if (signalStrength > -70) message += `\n📊 Calidad de señal: Buena 🟡`;
-                            else if (signalStrength > -80) message += `\n📊 Calidad de señal: Regular 🟠`;
-                            else message += `\n📊 Calidad de señal: Mala 🔴`;
+                        // Añadir interpretación de la señal solo si hay un valor válido
+                        const signalMatch = message.match(/Señal: (-\d+)/);
+                        if (signalMatch) {
+                            const signalStrength = parseInt(signalMatch[1]);
+                            if (!isNaN(signalStrength)) {
+                                if (signalStrength > -50) message += `\n📊 Calidad de señal: Excelente 🟢`;
+                                else if (signalStrength > -60) message += `\n📊 Calidad de señal: Muy buena 🟢`;
+                                else if (signalStrength > -70) message += `\n📊 Calidad de señal: Buena 🟡`;
+                                else if (signalStrength > -80) message += `\n📊 Calidad de señal: Regular 🟠`;
+                                else message += `\n📊 Calidad de señal: Mala 🔴`;
+                            }
                         }
             
                         await chat.sendMessage(message);
                     } catch (error) {
+                        console.error('Error al obtener información del dispositivo:', error);
                         await chat.sendMessage(`❌ No se pudo obtener información del dispositivo: ${error.message}`);
                     }
                 } else {

@@ -38,8 +38,28 @@ async function getDeviceInfo(ssh, deviceType) {
 
             // Obtener lista de direcciones ARP
             result = await ssh.execCommand(':foreach i in=[/ip arp find where dynamic=yes and complete=yes] do={ :put [/ip arp get $i address] }');
-            info.arpList = result.stdout.trim().split('\n').filter(Boolean) || [];
-            
+            info.arpList = result.stdout
+                .split('\n')
+                .map(ip => ip.trim().replace(/\r/g, ''))  // Eliminar \r y espacios en blanco
+                .filter(ip => ip && /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip))  // Filtrar IPs válidas
+                .sort((a, b) => {
+                    const aNum = a.split('.').map((num, idx) => parseInt(num) * Math.pow(256, 3-idx)).reduce((sum, num) => sum + num);
+                    const bNum = b.split('.').map((num, idx) => parseInt(num) * Math.pow(256, 3-idx)).reduce((sum, num) => sum + num);
+                    return aNum - bNum;
+                });
+                
+            // Generar resumen de IPs por tercer octeto
+            if (info.arpList.length > 10) {
+                const ipSummary = info.arpList.reduce((acc, ip) => {
+                    const subnet = ip.split('.').slice(0, 3).join('.') + '.0/24';
+                    acc[subnet] = (acc[subnet] || 0) + 1;
+                    return acc;
+                }, {});
+                info.ipSummary = Object.entries(ipSummary)
+                    .sort((a, b) => b[1] - a[1]) // Ordenar por cantidad, de mayor a menor
+                    .map(([subnet, count]) => `${subnet}: ${count}`);
+            }
+                
 
         } else if (deviceType === 'ubiquiti') {
             // Obtener información de señal
