@@ -22,6 +22,7 @@ const CONFIG = {
     SUPPORT_COMMAND: "soporte@red",
     PING_COMMAND: "ping@",
     CLIENT_COMMAND: "cliente@",
+    INFO_COMMAND: "info@",
     IP_COMMAND: "ip@disponibles",
     COMMANDS_INFO: "comandos@",
     CLIENT_ID: "client-one",
@@ -110,7 +111,7 @@ client.on('message', async (msg) => {
             } else if (msg.body.includes(CONFIG.COMMANDS_INFO)) {
                 console.log('Comando de información de comandos detectado. Procesando...');
                 await handleCommandsInfo(chat);
-            } else if (msg.body.startsWith('info@')) {
+            } else if (msg.body.startsWith(CONFIG.INFO_COMMAND)) {
                 const ip = msg.body.split('@')[1];
                 if (isValidIP(ip)) {
                     try {
