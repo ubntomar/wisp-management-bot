@@ -135,18 +135,22 @@ client.on('message', async (msg) => {
                             
                             // Manejar la información de velocidad
                             if (deviceInfo.info.etherRate && deviceInfo.info.etherRate !== 'no such item') {
-                                const speedMatch = deviceInfo.info.etherRate.match(/(\d+)(\w+)/);
-                                if (speedMatch) {
-                                    const speed = parseInt(speedMatch[1]);
-                                    const unit = speedMatch[2];
-                                    message += `⚡ Velocidad: ${speed}${unit}`;
-                                    if (speed === 10) {
-                                        message += ` ⚠️ ALERTA: Posible problema en la interfaz Ethernet\n`;
-                                    } else {
-                                        message += `\n`;
-                                    }
+                                if (deviceInfo.info.etherRate.includes('status: no-link')) {
+                                    message += `⚠️ ALERTA: Interfaz LAN sin enlace. Posible daño en la interfaz.\n`;
                                 } else {
-                                    message += `⚡ Velocidad: ${deviceInfo.info.etherRate}\n`;
+                                    const speedMatch = deviceInfo.info.etherRate.match(/(\d+)(\w+)/);
+                                    if (speedMatch) {
+                                        const speed = parseInt(speedMatch[1]);
+                                        const unit = speedMatch[2];
+                                        message += `⚡ Velocidad: ${speed}${unit}`;
+                                        if (speed === 10) {
+                                            message += ` ⚠️ ALERTA: Posible problema en la interfaz Ethernet\n`;
+                                        } else {
+                                            message += `\n`;
+                                        }
+                                    } else {
+                                        message += `⚡ Velocidad: No disponible\n`;
+                                    }
                                 }
                             } else {
                                 message += `⚡ Velocidad: No disponible\n`;
@@ -206,40 +210,50 @@ async function searchClient(searchTerm, chat) {
     let connection;
     try {   
         connection = await mysql.createConnection(CONFIG.DB_CONFIG);
-        const terms = searchTerm.split(' ').filter(term => term.length > 0);
+        
+        const words = searchTerm.toLowerCase().split(' ').filter(word => word.trim() !== '');
+        
         let query = `
             SELECT id, cliente, apellido, cedula, direccion, ciudad, telefono, ip, 
                    suspender, suspenderFecha, \`suspender-list-status\` AS suspender_list_status,
                    \`suspender-list-status-date\` AS suspender_list_status_date,
                    reconectPending, \`reconected-date\` AS reconected_date, pingDate
             FROM afiliados 
-            WHERE activo = 1 AND eliminar = 0 AND (`;
-
+            WHERE activo = 1 AND eliminar = 0 
+            AND (`;
+        
         const conditions = [];
         const params = [];
-
-        terms.forEach(term => {
-            conditions.push(`cliente LIKE ?`);
-            conditions.push(`apellido LIKE ?`);
-            conditions.push(`cedula LIKE ?`);
-            params.push(`%${term}%`, `%${term}%`, `%${term}%`); 
+        
+        words.forEach(word => {
+            conditions.push(`LOWER(CONCAT(cliente, ' ', apellido)) LIKE ?`);
+            params.push(`%${word}%`);
         });
+        
+        query += conditions.join(' AND ') + ') LIMIT 10';
 
-        query += conditions.join(' OR ') + ') LIMIT 10';
+        // Imprimir la consulta SQL con los valores reales (solo para depuración)
+        const sqlWithValues = query.replace(/\?/g, () => {
+            const value = params.shift();
+            params.unshift(value); // Volver a añadir el valor al principio del array
+            return `'${value}'`;
+        });
+        console.log("Consulta SQL a ejecutar:", sqlWithValues);
 
         const [rows] = await connection.execute(query, params);
         
         if (rows.length === 0) {
-            await chat.sendMessage(`No se encontraron clientes activos que coincidan con "${searchTerm}"`);
+            await chat.sendMessage(`🔍 No se encontraron clientes activos que coincidan con "${searchTerm}"`);
         } else {
-            let message = `Se encontraron ${rows.length} cliente(s) activo(s):\n\n`;
+            let message = `🔍 Se encontraron ${rows.length} cliente(s) activo(s) que coinciden con "${searchTerm}":\n\n`;
             for (const [index, client] of rows.entries()) {
-                message += `${index + 1}. ID: ${client.id}\n`;
-                message += `   Nombre: ${client.cliente} ${client.apellido}\n`;
-                message += `   Cédula: ${client.cedula}\n`;
-                message += `   Dirección: ${client.direccion}, ${client.ciudad}\n`;
-                message += `   Teléfono: ${client.telefono}\n`;
-                message += `   IP: ${client.ip}\n`;
+                message += `👤 Cliente #${index + 1}\n`;
+                message += `🆔 ID: ${client.id}\n`;
+                message += `📛 Nombre: ${client.cliente} ${client.apellido}\n`;
+                message += `🪪 Cédula: ${client.cedula}\n`;
+                message += `📍 Dirección: ${client.direccion}, ${client.ciudad}\n`;
+                message += `📞 Teléfono: ${client.telefono}\n`;
+                message += `🌐 IP: ${client.ip}\n`;
 
                 // Procesar IP del repetidor
                 if (client.ip) {
@@ -252,26 +266,30 @@ async function searchClient(searchTerm, chat) {
                                 const { serverIp, apIp } = await getServerIpAndAp(connection, repeaterSubnetGroupId);
                                 if (serverIp) {
                                     const pingResult = await pingIP(serverIp);
-                                    message += `   IP del Repetidor: ${serverIp}\n`;
+                                    message += `   📡 IP del Repetidor: ${serverIp}\n`;
                                     message += pingResult.success ? 
-                                        `  ✅ Ping al repetidor: Exitoso\n` : 
-                                        `  ❌ Ping al repetidor: Fallido\n`;
-                                }
-                                if (apIp) {
-                                    const apPingResult = await pingIP(apIp);
-                                    message += `   IP del AP en el Cerro: ${apIp}\n`;
-                                    message += apPingResult.success ? 
-                                        ` ✅ Ping al AP en el Cerro: Exitoso\n` : 
-                                        ` ❌ Ping al AP en el Cerro: Fallido\n`;
-                                } else {
-                                    message += `   No se encontró IP del AP en el Cerro para este repetidor\n`;
+                                        `   ✅ Ping al repetidor: Exitoso\n` : 
+                                        `   ❌ Ping al repetidor: Fallido\n`;
+                                    
+                                    // Verificar si la IP del repetidor termina en .1
+                                    if (!serverIp.endsWith('.1')) {
+                                        if (apIp) {
+                                            const apPingResult = await pingIP(apIp);
+                                            message += `   📡 IP del AP en el Cerro: ${apIp}\n`;
+                                            message += apPingResult.success ? 
+                                                `   ✅ Ping al AP en el Cerro: Exitoso\n` : 
+                                                `   ❌ Ping al AP en el Cerro: Fallido\n`;
+                                        } else {
+                                            message += `   ⚠️ No se encontró IP del AP en el Cerro para este repetidor\n`;
+                                        }
+                                    }
+                                    // No añadimos ningún mensaje si la IP termina en .1
                                 }
                             }
                         }
                     }
                 }
 
-                
                 // Información sobre suspensión y reconexión
                 if (client.suspender_list_status === 1) {
                     const suspendDate = new Date(client.suspender_list_status_date);
@@ -307,7 +325,6 @@ async function searchClient(searchTerm, chat) {
                             message += `   📡 Último ping exitoso a ${client.ip}: hace ${daysAgo} días\n`;
                         }
                     } else {
-                        // No hay registro de ping, intentemos hacer un ping ahora
                         console.log(`Intentando ping a ${client.ip}...`);
                         const pingResult = await pingIP(client.ip);
                         if (pingResult.success) {
@@ -322,15 +339,12 @@ async function searchClient(searchTerm, chat) {
                 }
 
                 message += '\n';
-            };
+            }
             await chat.sendMessage(message);
-            
-            global.lastSearchedClientId = rows[0].id;
-            console.log(`ID del cliente guardado: ${global.lastSearchedClientId}`);
         }
     } catch (error) {
         console.error('Error en la búsqueda de clientes:', error);
-        await chat.sendMessage('Ocurrió un error al buscar el cliente. Por favor, intente más tarde.');
+        await chat.sendMessage('❌ Ocurrió un error al buscar el cliente. Por favor, intente más tarde.');
     } finally {
         if (connection) await connection.end();
     }
