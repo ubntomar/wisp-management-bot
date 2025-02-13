@@ -1,24 +1,31 @@
 const express = require('express');
 const { NodeSSH } = require('node-ssh');
-const dotenv = require('dotenv');
-
-dotenv.config({ path: '/var/www/ispexperts/login/.env' });
-
+require('dotenv').config();
 const app = express();
 app.use(express.json());
 
+
+adminOpc1Pass=process.env.ADMIN_PASS
+adminOpc2Pass=process.env.ADMIN_PASS2
+agingenieriaopc1Pass=process.env.AGINGENIERIA_PASS
+agingenieriaopc2Pass=process.env.AGINGENIERIA_PASS2
+ubntOp1Pass=process.env.UBNT_PASS
+ubntOp2Pass=process.env.UBNT_PASS2
+ubntOp3Pass=process.env.UBNT_PASS3
+ubntOp4Pass=process.env.UBNT_PASS4
+
 const MIKROTIK_CREDENTIALS = [
-    { username: 'admin', password: 'admin' },
-    { username: 'admin', password: 'agwist2017' },
-    { username: 'agingenieria', password: 'admin' },
-    { username: 'agingenieria', password: 'agwist2017' }
+    { username: 'admin', password: adminOpc1Pass },
+    { username: 'admin', password: adminOpc2Pass },
+    { username: 'agingenieria', password: agingenieriaopc1Pass },
+    { username: 'agingenieria', password: agingenieriaopc2Pass }
 ];
 
 const UBIQUITI_CREDENTIALS = [
-    { username: 'ubnt', password: 'ubnt' },
-    { username: 'ubnt', password: 'agwist2017' },
-    { username: 'ubnt', password: '-Agwist2017' },
-    { username: 'ubnt', password: 'Agwist1.' }
+    { username: process.env.UBNT_USER, password: ubntOp1Pass },
+    { username: process.env.UBNT_USER, password: ubntOp2Pass },
+    { username: process.env.UBNT_USER, password: ubntOp3Pass },  
+    { username: process.env.UBNT_USER, password: ubntOp4Pass }
 ];
 
 console.log('Device API starting...');

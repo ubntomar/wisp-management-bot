@@ -4,7 +4,7 @@ const osu = require('os-utils');
 const qrcode = require('qrcode-terminal');
 const ping = require('ping');
 const mysql = require('mysql2/promise');
-require('dotenv').config({ path: '/var/www/ispexperts/login/.env' });
+require('dotenv').config();
 
 const { exec } = require('child_process');
 const util = require('util');
@@ -14,6 +14,8 @@ const execPromise = util.promisify(exec);
 const axios = require('axios');
 
 console.log('Iniciando script...');
+
+//Estado del cliente: undefined
 
 
 // Configuración
@@ -392,7 +394,7 @@ async function getDeviceInfo(ip) {
 
 axios.get('http://localhost:3124/test')
     .then(response => console.log('API test successful:', response.data))
-    .catch(error => console.log('API test failed:', error.message));
+    .catch(error => console.log('API test failed ,is  device_api already running ?:', error.message));
 
 
 
