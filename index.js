@@ -1,4 +1,4 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const os = require('os');
 const osu = require('os-utils');
 const qrcode = require('qrcode-terminal');
@@ -15,12 +15,12 @@ const axios = require('axios');
 
 console.log('Iniciando script...');
 
-//Estado del cliente: undefined
+
 
 
 // Configuración
 const CONFIG = {
-    GROUP_NAME: "Soportes",
+    GROUP_NAME: "Bitacora Omar",
     SUPPORT_COMMAND: "soporte@red",
     PING_COMMAND: "ping@",
     CLIENT_COMMAND: "cliente@",
@@ -33,6 +33,14 @@ const CONFIG = {
         user: process.env.MYSQL_USER,
         password: process.env.MYSQL_PASSWORD,
         database: process.env.MYSQL_DATABASE
+    },
+    VOLT_COMMANDS: {
+        montecristo: "volt@montecristo",
+        retiro: "volt@retiro"
+    },
+    VOLTAGE_ENDPOINTS: {
+        montecristo: "http://192.168.21.253:8013/50",
+        retiro: "http://192.168.21.253:8013/50"  // Mismo endpoint para ambos
     }
 };
 
@@ -79,12 +87,57 @@ client.on('disconnected', (reason) => {
     }, 5000);
 });
 
+
+global.eventEmitter.on('send-whatsapp-message', async (data) => {
+    const { phoneNumber, message, image } = data;
+    
+    try {
+        // Asegurarse de que el cliente está listo
+        if (!client.info) {
+            throw new Error('Cliente de WhatsApp no está listo');
+        }
+
+        // Formatear el número de teléfono
+        const formattedNumber = formatPhoneNumber(phoneNumber);
+        
+        // Si hay una imagen, enviarla con o sin mensaje
+        if (image) {
+            const media = new MessageMedia('image/jpeg', image.toString('base64'));
+            await client.sendMessage(`${formattedNumber}@c.us`, media, {
+                caption: message || ''
+            });
+        } 
+        // Si solo hay mensaje, enviar texto
+        else if (message) {
+            await client.sendMessage(`${formattedNumber}@c.us`, message);
+        }
+
+        console.log(`Mensaje enviado a ${formattedNumber}`);
+    } catch (error) {
+        console.error('Error al enviar mensaje de WhatsApp:', error);
+    }
+});
+
+function formatPhoneNumber(phone) {
+    // Eliminar cualquier caracter que no sea número
+    let cleaned = phone.replace(/\D/g, '');
+    
+    // Asegurarse de que tiene el formato correcto para WhatsApp
+    if (cleaned.startsWith('0')) {
+        cleaned = '57' + cleaned.slice(1);
+    } else if (!cleaned.startsWith('57')) {
+        cleaned = '57' + cleaned;
+    }
+    
+    return cleaned;
+}
+
+
 client.on('message', async (msg) => {
     console.log('Mensaje recibido:', msg.body);
     try {
         const chat = await msg.getChat();
-        console.log('Chat obtenido:', chat.name);
-        if (chat.isGroup && chat.name === CONFIG.GROUP_NAME) {
+        if (chat.name === CONFIG.GROUP_NAME) {
             console.log(`Mensaje recibido en el grupo ${chat.name}: ${msg.body}`);
             if (msg.body.includes(CONFIG.SUPPORT_COMMAND)) {
                 console.log('Comando de soporte detectado. Enviando estado del sistema...');
@@ -198,6 +251,32 @@ client.on('message', async (msg) => {
                     }
                 } else {
                     await chat.sendMessage(`❌ La IP proporcionada (${ip}) no es válida.`);
+                }
+            } else if (msg.body.includes(CONFIG.VOLT_COMMANDS.montecristo)) {
+                console.log('Comando de voltaje Montecristo detectado. Procesando...');
+                try {
+                    const voltageResult = await getVoltage('montecristo');
+                    if (voltageResult.success) {
+                        await chat.sendMessage(`📊 Voltaje actual en Montecristo: ${voltageResult.voltage}V`);
+                    } else {
+                        await chat.sendMessage(`❌ Error al obtener el voltaje en Montecristo: ${voltageResult.error}`);
+                    }
+                } catch (error) {
+                    console.error('Error procesando comando de voltaje para Montecristo:', error);
+                    await chat.sendMessage('❌ Error al procesar el comando de voltaje para Montecristo');
+                }
+            } else if (msg.body.includes(CONFIG.VOLT_COMMANDS.retiro)) {
+                console.log('Comando de voltaje Retiro detectado. Procesando...');
+                try {
+                    const voltageResult = await getVoltage('retiro');
+                    if (voltageResult.success) {
+                        await chat.sendMessage(`📊 Voltaje actual en Retiro: ${voltageResult.voltage}V`);
+                    } else {
+                        await chat.sendMessage(`❌ Error al obtener el voltaje en Retiro: ${voltageResult.error}`);
+                    }
+                } catch (error) {
+                    console.error('Error procesando comando de voltaje para Retiro:', error);
+                    await chat.sendMessage('❌ Error al procesar el comando de voltaje para Retiro');
                 }
             }
 
@@ -527,7 +606,7 @@ async function handlePingCommand(ip, chat) {
 // Función para verificar el ping al peer VPN
 async function checkVPNPeer() {
     try {
-        const { stdout, stderr } = await execPromise('ping -c 4 192.168.42.10');
+        const { stdout, stderr } = await execPromise('ping -c 4 10.0.11.10');
         return !stderr && stdout.includes('4 packets transmitted, 4 received');
     } catch (error) {
         console.error('Error al hacer ping al peer VPN:', error);
@@ -647,11 +726,55 @@ Comandos disponibles:
    Ejemplo: comandos@
    Descripción: Muestra esta lista de comandos disponibles.
 
+6. ${CONFIG.VOLT_COMMANDS.montecristo}
+   Ejemplo: volt@montecristo
+   Descripción: Muestra el voltaje actual en la estación Montecristo.
+
+7. ${CONFIG.VOLT_COMMANDS.retiro}
+   Ejemplo: volt@retiro
+   Descripción: Muestra el voltaje actual en la estación Retiro.   
+
 Recuerda que todos estos comandos deben ser utilizados dentro del grupo "${CONFIG.GROUP_NAME}".
     `;
 
     await chat.sendMessage(commandsInfo);
 }
+
+
+async function getVoltage(location) {
+    try {
+        const endpoint = CONFIG.VOLTAGE_ENDPOINTS[location];
+        if (!endpoint) {
+            return {
+                success: false,
+                error: 'Ubicación no válida'
+            };
+        }
+
+        const response = await axios.get(endpoint);
+        const data = response.data;
+        
+        if (data && data.data && data.data.sensor1) {
+            return {
+                success: true,
+                voltage: data.data.sensor1
+            };
+        } else {
+            return {
+                success: false,
+                error: 'No se pudo obtener el voltaje'
+            };
+        }
+    } catch (error) {
+        console.error(`Error al obtener el voltaje de ${location}:`, error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+
 
 console.log('Iniciando cliente WhatsApp...');
 client.initialize().catch(err => console.error('Error al inicializar el cliente:', err));
@@ -667,6 +790,13 @@ process.on('uncaughtException', (error) => {
 
 setInterval(() => {
     console.log('Estado del cliente:', client.info);
+    if (client.info === undefined) {
+        console.log('Reiniciando cliente WhatsApp...');
+        client.initialize().catch(err => console.error('Error al reinicializar el cliente:', err));
+    }else
+    {
+        console.log('Cliente WhatsApp en linea...');
+    }
   }, 60000); // Comprueba cada minuto
 
 console.log('Script completamente cargado y en ejecución.');

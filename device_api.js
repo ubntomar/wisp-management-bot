@@ -1,6 +1,13 @@
 const express = require('express');
 const { NodeSSH } = require('node-ssh');
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage() });
+const EventEmitter = require('events');
 require('dotenv').config();
+
+// Crear el eventEmitter global
+global.eventEmitter = new EventEmitter();
+
 const app = express();
 app.use(express.json());
 
@@ -101,6 +108,39 @@ async function getDeviceInfo(ssh, deviceType) {
     console.log(`Device info for ${deviceType}:`, info);
     return info;
 }
+
+
+app.post('/send-message', upload.single('image'), async (req, res) => {
+    const { phone_number, message } = req.body;
+    
+    if (!phone_number) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Se requiere número de teléfono' 
+        });
+    }
+
+    try {
+        // Emitir evento para que el bot de WhatsApp procese el mensaje
+        global.eventEmitter.emit('send-whatsapp-message', {
+            phoneNumber: phone_number,
+            message: message || '',
+            image: req.file ? req.file.buffer : null
+        });
+
+        res.json({ 
+            success: true, 
+            message: 'Mensaje enviado al bot de WhatsApp' 
+        });
+    } catch (error) {
+        console.error('Error al procesar el mensaje:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
 
 app.post('/execute-command', async (req, res) => {
     const { ip, deviceType } = req.body;
