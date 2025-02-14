@@ -11,65 +11,69 @@ class WhatsAppSender:
                     phone_number: str, 
                     message: str, 
                     image_path: Optional[str] = None) -> dict:
-        """
-        Envía un mensaje y opcionalmente una imagen a través del bot de WhatsApp.
-        
-        Args:
-            phone_number (str): Número de teléfono del destinatario
-            message (str): Mensaje a enviar
-            image_path (str, optional): Ruta al archivo de imagen
-        
-        Returns:
-            dict: Respuesta del servidor
-        """
         try:
-            # Preparar los datos
-            data = {
-                'phone_number': phone_number,
-                'message': message
+            # Asegurar que el número de teléfono tiene el formato correcto
+            phone_number = phone_number.strip().replace('+', '')
+            if not phone_number.startswith('57'):
+                phone_number = '57' + phone_number
+
+            # Headers explícitos
+            headers = {
+                'Content-Type': 'application/json'
             }
-            
-            files = {}
+
+            # Preparar los datos
+            payload = {
+                'phone_number': phone_number,
+                'message': message.strip()
+            }
+
+            print(f"Enviando request a: {self.send_message_endpoint}")
+            print(f"Headers: {headers}")
+            print(f"Payload: {payload}")
+
             if image_path and os.path.exists(image_path):
+                # Si hay imagen, usar multipart/form-data
                 files = {
                     'image': ('image.jpg', open(image_path, 'rb'), 'image/jpeg')
                 }
+                response = requests.post(
+                    self.send_message_endpoint,
+                    data=payload,
+                    files=files,
+                    timeout=30
+                )
+            else:
+                # Si no hay imagen, usar JSON
+                response = requests.post(
+                    self.send_message_endpoint,
+                    json=payload,  # Usar json en lugar de data
+                    headers=headers,
+                    timeout=30
+                )
             
-            # Hacer la solicitud POST
-            response = requests.post(
-                self.send_message_endpoint,
-                data=data,
-                files=files
-            )
-            
-            # Cerrar el archivo si se abrió
-            if files and 'image' in files:
-                files['image'][1].close()
+            print(f"Status Code: {response.status_code}")
+            print(f"Response: {response.text}")
             
             return response.json()
             
         except Exception as e:
+            print(f"Error en send_message: {str(e)}")
             return {
                 'success': False,
                 'error': str(e)
             }
 
-# Ejemplo de uso
 if __name__ == "__main__":
-    # Crear instancia del sender
-    sender = WhatsAppSender()
-    
-    # Ejemplo 1: Enviar solo mensaje
-    result = sender.send_message(
-        phone_number="3001234567",
-        message="¡Hola! Este es un mensaje de prueba 👋"
-    )
-    print("Resultado mensaje texto:", result)
-    
-    # # Ejemplo 2: Enviar mensaje con imagen
-    # result = sender.send_message(
-    #     phone_number="3001234567",
-    #     message="¡Mira esta imagen! 📸",
-    #     image_path="./test_image.jpg"
-    # )
-    # print("Resultado mensaje con imagen:", result)
+    try:
+        sender = WhatsAppSender()
+        
+        # Ejemplo: Enviar solo mensaje
+        result = sender.send_message(
+            phone_number="3147654655",  # Reemplaza con tu número
+            message="¡Hola! Este es un mensaje de prueba 👋"
+        )
+        print("Resultado mensaje texto:", result)
+        
+    except Exception as e:
+        print(f"Error general: {str(e)}")

@@ -2,14 +2,14 @@ const express = require('express');
 const { NodeSSH } = require('node-ssh');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() });
-const EventEmitter = require('events');
 require('dotenv').config();
 
-// Crear el eventEmitter global
-global.eventEmitter = new EventEmitter();
+const Redis = require('redis');
+const publisher = Redis.createClient();
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); 
 
 
 adminOpc1Pass=process.env.ADMIN_PASS
@@ -110,36 +110,57 @@ async function getDeviceInfo(ssh, deviceType) {
 }
 
 
+
 app.post('/send-message', upload.single('image'), async (req, res) => {
-    const { phone_number, message } = req.body;
+    console.log('==================== NUEVO MENSAJE ====================');
+    console.log('Received request body:', req.body);
     
+    const { phone_number, message } = req.body;
+    console.log('Extracted phone_number:', phone_number);
+    console.log('Extracted message:', message);
+
     if (!phone_number) {
+        console.log('No phone number provided!');
         return res.status(400).json({ 
             success: false, 
-            error: 'Se requiere número de teléfono' 
+            error: 'Se requiere número de teléfono'
         });
     }
 
     try {
-        // Emitir evento para que el bot de WhatsApp procese el mensaje
-        global.eventEmitter.emit('send-whatsapp-message', {
+        const messageData = {
             phoneNumber: phone_number,
             message: message || '',
             image: req.file ? req.file.buffer : null
-        });
+        };
 
+        // Publicar el mensaje en Redis
+        await publisher.publish('whatsapp_messages', JSON.stringify(messageData));
+        console.log('Message published to Redis');
+        
         res.json({ 
             success: true, 
-            message: 'Mensaje enviado al bot de WhatsApp' 
+            message: 'Mensaje enviado al bot de WhatsApp',
+            sentTo: phone_number
         });
     } catch (error) {
         console.error('Error al procesar el mensaje:', error);
         res.status(500).json({ 
             success: false, 
-            error: error.message 
+            error: error.message
         });
     }
+    console.log('==================== FIN MENSAJE ====================');
 });
+
+// Inicializar Redis al inicio
+(async () => {
+    await publisher.connect();
+    console.log('Redis publisher connected');
+})();
+
+
+
 
 
 app.post('/execute-command', async (req, res) => {

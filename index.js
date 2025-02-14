@@ -5,7 +5,8 @@ const qrcode = require('qrcode-terminal');
 const ping = require('ping');
 const mysql = require('mysql2/promise');
 require('dotenv').config();
-
+const Redis = require('redis');
+const subscriber = Redis.createClient();
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
@@ -88,35 +89,46 @@ client.on('disconnected', (reason) => {
 });
 
 
-global.eventEmitter.on('send-whatsapp-message', async (data) => {
-    const { phoneNumber, message, image } = data;
-    
-    try {
-        // Asegurarse de que el cliente está listo
-        if (!client.info) {
-            throw new Error('Cliente de WhatsApp no está listo');
-        }
+(async () => {
+    await subscriber.connect();
+    console.log('Redis subscriber connected');
 
-        // Formatear el número de teléfono
-        const formattedNumber = formatPhoneNumber(phoneNumber);
-        
-        // Si hay una imagen, enviarla con o sin mensaje
-        if (image) {
-            const media = new MessageMedia('image/jpeg', image.toString('base64'));
-            await client.sendMessage(`${formattedNumber}@c.us`, media, {
-                caption: message || ''
-            });
-        } 
-        // Si solo hay mensaje, enviar texto
-        else if (message) {
-            await client.sendMessage(`${formattedNumber}@c.us`, message);
-        }
+    await subscriber.subscribe('whatsapp_messages', async (message) => {
+        console.log('Received message from Redis:', message);
+        try {
+            const data = JSON.parse(message);
+            const { phoneNumber, message: textMessage, image } = data;
 
-        console.log(`Mensaje enviado a ${formattedNumber}`);
-    } catch (error) {
-        console.error('Error al enviar mensaje de WhatsApp:', error);
-    }
-});
+            // Asegurarse de que el cliente está listo
+            if (!client.info) {
+                throw new Error('Cliente de WhatsApp no está listo');
+            }
+
+            // Formatear el número de teléfono
+            const formattedNumber = formatPhoneNumber(phoneNumber);
+            console.log('Sending message to formatted number:', formattedNumber);
+            
+            // Si hay una imagen, enviarla con o sin mensaje
+            if (image) {
+                const media = new MessageMedia('image/jpeg', image.toString('base64'));
+                await client.sendMessage(`${formattedNumber}@c.us`, media, {
+                    caption: textMessage || ''
+                });
+                console.log('Image sent successfully');
+            } 
+            // Si solo hay mensaje, enviar texto
+            else if (textMessage) {
+                await client.sendMessage(`${formattedNumber}@c.us`, textMessage);
+                console.log('Message sent successfully');
+            }
+
+            console.log(`Mensaje enviado a ${formattedNumber}`);
+        } catch (error) {
+            console.error('Error processing WhatsApp message:', error);
+        }
+    });
+})();
+
 
 function formatPhoneNumber(phone) {
     // Eliminar cualquier caracter que no sea número
