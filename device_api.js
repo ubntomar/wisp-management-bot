@@ -115,10 +115,10 @@ app.post('/send-message', upload.single('image'), async (req, res) => {
     console.log('==================== NUEVO MENSAJE ====================');
     console.log('Received request body:', req.body);
     
-    const { phone_number, message } = req.body;
+    const { phone_number, message, isGroup } = req.body;
     console.log('Extracted phone_number:', phone_number);
     console.log('Extracted message:', message);
-
+    console.log('Extracted isGroup:', isGroup);
     if (!phone_number) {
         console.log('No phone number provided!');
         return res.status(400).json({ 
@@ -131,6 +131,7 @@ app.post('/send-message', upload.single('image'), async (req, res) => {
         const messageData = {
             phoneNumber: phone_number,
             message: message || '',
+            isGroup: isGroup , 
             image: req.file ? req.file.buffer : null
         };
 

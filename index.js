@@ -69,6 +69,20 @@ client.on('qr', (qr) => {
 
 client.on('ready', () => {
     console.log('Cliente ready .. listo y conectado.');
+    //listar los grupos disponibles
+    // client.getChats().then(chats => {
+    //     console.log('Grupos disponibles:');
+    //     chats.forEach(chat => { 
+    //         console.log(`- ${chat.name} (${chat.id._serialized})`);
+    //     });
+    //     const group = chats.find(chat => chat.isGroup && chat.name === "Soportes");
+    //     if (group) {
+    //         console.log(`ID del grupo "AG INGENIERIA": ${group.id._serialized}`);
+    //     } else {
+    //         console.log('Grupo "AG INGENIERIA" no encontrado.');
+    //     }
+    // });
+    
 });
 
 client.on('authenticated', () => {
@@ -92,37 +106,45 @@ client.on('disconnected', (reason) => {
 (async () => {
     await subscriber.connect();
     console.log('Redis subscriber connected');
-
     await subscriber.subscribe('whatsapp_messages', async (message) => {
         console.log('Received message from Redis:', message);
+        let formattedNumber;
+        let numberToSend;
         try {
             const data = JSON.parse(message);
-            const { phoneNumber, message: textMessage, image } = data;
+            const { phoneNumber, message: textMessage, isGroup, image  } = data;
 
             // Asegurarse de que el cliente está listo
             if (!client.info) {
                 throw new Error('Cliente de WhatsApp no está listo');
             }
-
-            // Formatear el número de teléfono
-            const formattedNumber = formatPhoneNumber(phoneNumber);
-            console.log('Sending message to formatted number:', formattedNumber);
             
+            if (isGroup === "True") {
+                numberToSend = phoneNumber + '@g.us';
+            }else{
+                formattedNumber = formatPhoneNumber(phoneNumber);
+                console.log('Número formateado:', formattedNumber);
+                numberToSend = formattedNumber + '@c.us';
+            }    
+            console.log('Valor recibido en isGroup:', isGroup);
+            
+            
+
             // Si hay una imagen, enviarla con o sin mensaje
             if (image) {
                 const media = new MessageMedia('image/png', Buffer.from(image).toString('base64'));
-                await client.sendMessage(`${formattedNumber}@c.us`, media, {
+                await client.sendMessage(numberToSend, media, {
                     caption: textMessage || ''
                 });
                 console.log('Image sent successfully');
             } 
             // Si solo hay mensaje, enviar texto
             else if (textMessage) {
-                await client.sendMessage(`${formattedNumber}@c.us`, textMessage);
+                await client.sendMessage(numberToSend, textMessage);
                 console.log('Message sent successfully');
             }
 
-            console.log(`Mensaje enviado a ${formattedNumber}`);
+            console.log(`Mensaje enviado a ${numberToSend}`);
         } catch (error) {
             console.error('Error processing WhatsApp message:', error);
         }

@@ -10,6 +10,7 @@ class WhatsAppSender:
     def send_message(self, 
                      phone_number: str, 
                      message: str, 
+                     isGroup: bool,
                      image_path: Optional[str] = None) -> dict:
         try:
             # Asegurar que el número de teléfono tenga el formato correcto
@@ -20,7 +21,8 @@ class WhatsAppSender:
             # Construir los datos del mensaje
             payload = {
                 'phone_number': phone_number,
-                'message': message.strip()
+                'message': message.strip(),
+                'isGroup': isGroup
             }
 
             print(f"Enviando request a: {self.send_message_endpoint}")
@@ -59,14 +61,28 @@ if __name__ == "__main__":
         
         # Ruta de la imagen a enviar
         image_path = "img/voltage_last24hours.png"
-        
+        phone_number = "3147654655"
+        if(len(phone_number) == 10):
+            isGroup = False
+        else:
+            isGroup = True     
         # Enviar mensaje con imagen adjunta
         result = sender.send_message(
-            phone_number="3147654655",  # Reemplaza con tu número de WhatsApp
-            message="🔋 Aquí tienes el reporte de voltaje de las últimas 24 horas.",
+            phone_number=phone_number,  # Reemplaza con tu número de WhatsApp
+            message="🔋 Reporte de voltaje de las últimas 24 horas. PRUEBA",
+            isGroup=isGroup,
             image_path=image_path
         )
         print("Resultado del envío:", result)
         
     except Exception as e:
         print(f"Error general: {str(e)}")
+
+#phone_number de telefono de prueba ="3147654655"
+#phone_number de grupo Soportes de prueba ="573147654655-1554480079"
+
+#ID del grupo AG INGENIERIA
+#const groupId = "573213011018-1440435780@g.us";    
+
+#ID del grupo Soportes
+#const groupId = "573147654655-1554480079@g.us";    
