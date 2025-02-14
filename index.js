@@ -121,6 +121,7 @@ client.on('disconnected', (reason) => {
             
             if (isGroup === "True") {
                 numberToSend = phoneNumber + '@g.us';
+                console.log('Número formateado:', numberToSend);
             }else{
                 formattedNumber = formatPhoneNumber(phoneNumber);
                 console.log('Número formateado:', formattedNumber);
