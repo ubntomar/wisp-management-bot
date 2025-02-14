@@ -58,7 +58,26 @@ if tiempos and voltajes:
 
     plt.gcf().autofmt_xdate()  # Rotar etiquetas para mejor lectura
     
-    # Identificar los puntos más bajos y anotar sus valores
+    # **Mostrar valores en el primer y último punto**
+    plt.annotate(f"{voltajes[0]:.2f}V",  # Primer punto
+                 (tiempos[0], voltajes[0]), 
+                 textcoords="offset points", 
+                 xytext=(0, 10),  # Mover hacia arriba
+                 ha='center', 
+                 fontsize=10, 
+                 color='green',
+                 fontweight='bold')
+
+    plt.annotate(f"{voltajes[-1]:.2f}V",  # Último punto
+                 (tiempos[-1], voltajes[-1]), 
+                 textcoords="offset points", 
+                 xytext=(0, 10),  # Mover hacia arriba
+                 ha='center', 
+                 fontsize=10, 
+                 color='green',
+                 fontweight='bold')
+
+    # **Anotaciones para los puntos más bajos**
     min_threshold = min(voltajes) + 0.2  # Consideramos los más bajos cercanos al mínimo +0.2V
     for i in range(len(voltajes)):
         if voltajes[i] <= min_threshold:  # Filtrar puntos bajos

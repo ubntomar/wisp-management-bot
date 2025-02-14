@@ -110,7 +110,7 @@ client.on('disconnected', (reason) => {
             
             // Si hay una imagen, enviarla con o sin mensaje
             if (image) {
-                const media = new MessageMedia('image/jpeg', image.toString('base64'));
+                const media = new MessageMedia('image/png', Buffer.from(image).toString('base64'));
                 await client.sendMessage(`${formattedNumber}@c.us`, media, {
                     caption: textMessage || ''
                 });
