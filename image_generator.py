@@ -92,7 +92,7 @@ if tiempos and voltajes:
     plt.tight_layout()
     
     # Guardar la gráfica en PNG
-    nombre_imagen = "img/voltage_last24hours.png"
+    nombre_imagen = "/home/omar/whatssapp/wisp-management-bot/img/voltage_last24hours.png"
     plt.savefig(nombre_imagen)
     plt.close()
     print(f"Gráfica guardada en {nombre_imagen}")
