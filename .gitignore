@@ -47,3 +47,5 @@ build/
 *.pid
 *.seed
 *.seed.js
+
+telefonos.txt

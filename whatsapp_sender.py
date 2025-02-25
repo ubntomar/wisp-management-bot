@@ -60,8 +60,10 @@ if __name__ == "__main__":
         sender = WhatsAppSender()
         
         # Ruta de la imagen a enviar
-        image_path = "img/voltage_last24hours.png"
-        phone_number = "573147654655-1554480079"
+        image_path = "/home/omar/whatssapp/wisp-management-bot/img/voltage_last24hours.png"
+        phone_number = os.getenv("PHONE_GROUP_SOPORTES")
+        if not phone_number:
+            raise ValueError("La variable de entorno PHONE_GROUP_SOPORTES no está configurada.")
         if(len(phone_number) == 10):
             isGroup = False
         else:
@@ -78,7 +80,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Error general: {str(e)}")
 
-#phone_number de telefono de prueba ="3147654655"
-#phone_number de grupo Soportes de prueba ="573147654655-1554480079"
-#phone_number de grupo AG INGENIERIA ="573213011018-1440435780"
+
 
