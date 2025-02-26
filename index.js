@@ -732,6 +732,7 @@ async function handleAvailableIPsCommand(chat) {
     } catch (error) {
         console.error('Error al buscar IPs disponibles:', error);
         await chat.sendMessage('Ocurrió un error al buscar IPs disponibles. Por favor, intente más tarde.');
+        await chat.sendMessage(`Error: ${error.message}`);
     } finally {
         if (connection) await connection.end();
     }
