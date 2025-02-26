@@ -21,7 +21,7 @@ console.log('Iniciando script...');
 
 // Configuración
 const CONFIG = {
-    GROUP_NAME: "Bitacora Omar",
+    GROUP_NAME: "Soportes",
     SUPPORT_COMMAND: "soporte@red",
     PING_COMMAND: "ping@",
     CLIENT_COMMAND: "cliente@",
@@ -172,7 +172,7 @@ client.on('message', async (msg) => {
     console.log('Mensaje recibido:', msg.body);
     try {
         const chat = await msg.getChat();
-        if (chat.name === CONFIG.GROUP_NAME) {
+        if (chat.name === CONFIG.GROUP_NAME || chat.name === "bot") {
             console.log(`Mensaje recibido en el grupo ${chat.name}: ${msg.body}`);
             if (msg.body.includes(CONFIG.SUPPORT_COMMAND)) {
                 console.log('Comando de soporte detectado. Enviando estado del sistema...');
@@ -739,38 +739,42 @@ async function handleAvailableIPsCommand(chat) {
 
 async function handleCommandsInfo(chat) {
     const commandsInfo = `
-Comandos disponibles:
+        Comandos disponibles:
 
-1. ${CONFIG.SUPPORT_COMMAND}
-   Ejemplo: soporte@red
-   Descripción: Muestra el estado actual del sistema (uso de CPU y memoria).
+        1. ${CONFIG.SUPPORT_COMMAND}
+        Ejemplo: soporte@red
+        Descripción: Muestra el estado actual del sistema (uso de CPU y memoria).
 
-2. ${CONFIG.PING_COMMAND}
-   Ejemplo: ping@192.168.1.1
-   Descripción: Realiza un ping a la IP especificada y muestra el resultado.
+        2. ${CONFIG.PING_COMMAND}
+        Ejemplo: ping@192.168.1.1
+        Descripción: Realiza un ping a la IP especificada y muestra el resultado.
 
-3. ${CONFIG.CLIENT_COMMAND}
-   Ejemplo: cliente@Juan Pérez
-   Descripción: Busca información de un cliente por nombre, apellido, dirección o cédula.
+        3. ${CONFIG.CLIENT_COMMAND}
+        Ejemplo: cliente@Juan Pérez
+        Descripción: Busca información de un cliente por nombre, apellido, dirección o cédula.
 
-4. ${CONFIG.IP_COMMAND}
-   Ejemplo: ip@disponibles
-   Descripción: Muestra una lista de IPs disponibles en diferentes redes.
+        4. ${CONFIG.IP_COMMAND}
+        Ejemplo: ip@disponibles
+        Descripción: Muestra una lista de IPs disponibles en diferentes redes.
 
-5. ${CONFIG.COMMANDS_INFO}
-   Ejemplo: comandos@
-   Descripción: Muestra esta lista de comandos disponibles.
+        5. ${CONFIG.INFO_COMMAND}
+        Ejemplo: info@192.168.1.1
+        Descripción: Obtiene información detallada de un dispositivo por IP (Mikrotik/Ubiquiti).
 
-6. ${CONFIG.VOLT_COMMANDS.montecristo}
-   Ejemplo: volt@montecristo
-   Descripción: Muestra el voltaje actual en la estación Montecristo.
+        6. ${CONFIG.COMMANDS_INFO}
+        Ejemplo: comandos@
+        Descripción: Muestra esta lista de comandos disponibles.
 
-7. ${CONFIG.VOLT_COMMANDS.retiro}
-   Ejemplo: volt@retiro
-   Descripción: Muestra el voltaje actual en la estación Retiro.   
+        7. ${CONFIG.VOLT_COMMANDS.montecristo}
+        Ejemplo: volt@montecristo
+        Descripción: Muestra el voltaje actual en la estación Montecristo.
 
-Recuerda que todos estos comandos deben ser utilizados dentro del grupo "${CONFIG.GROUP_NAME}".
-    `;
+        8. ${CONFIG.VOLT_COMMANDS.retiro}
+        Ejemplo: volt@retiro
+        Descripción: Muestra el voltaje actual en la estación Retiro.
+
+        Recuerda que todos estos comandos deben ser utilizados dentro del grupo "${CONFIG.GROUP_NAME}".
+            `;
 
     await chat.sendMessage(commandsInfo);
 }
