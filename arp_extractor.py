@@ -240,6 +240,44 @@ class ARPExtractor:
         sorted_subnets = sorted(subnet_count.items(), key=lambda x: x[1], reverse=True)
         return [f"{subnet}: {count} dispositivos" for subnet, count in sorted_subnets]
 
+    def check_subnet_alerts(self, summary):
+        """Verifica si hay alertas en las subredes críticas"""
+        if not summary:
+            return None
+            
+        # Subredes críticas que deben tener al menos 10 dispositivos
+        critical_subnets = {
+            '192.168.26.0/24': 10,
+            '192.168.20.0/24': 10, 
+            '192.168.30.0/24': 10
+        }
+        
+        alerts = []
+        
+        # Parsear el resumen para extraer datos de las subredes
+        subnet_data = {}
+        for line in summary:
+            # Formato esperado: "192.168.26.0/24: 63 dispositivos"
+            parts = line.split(': ')
+            if len(parts) == 2:
+                subnet = parts[0]
+                try:
+                    count = int(parts[1].split(' ')[0])
+                    subnet_data[subnet] = count
+                except ValueError:
+                    continue
+        
+        # Verificar subredes críticas
+        for subnet, min_devices in critical_subnets.items():
+            current_count = subnet_data.get(subnet, 0)
+            if current_count < min_devices:
+                if current_count == 0:
+                    alerts.append(f"❌ {subnet}: SIN DISPOSITIVOS")
+                else:
+                    alerts.append(f"⚠️ {subnet}: {current_count} dispositivos (< {min_devices})")
+        
+        return alerts if alerts else None
+
     def format_whatsapp_message(self, target_ip, result):
         """Formatea el resultado para envío por WhatsApp"""
         timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
@@ -254,8 +292,20 @@ class ARPExtractor:
         device_type = result['device_type']
         summary = result.get('summary', [])
         
-        # Encabezado
-        message = f"""📡 REPORTE ARP ACTIVAS
+        # Verificar alertas de subredes críticas
+        subnet_alerts = self.check_subnet_alerts(summary)
+        
+        # Encabezado con alertas si existen
+        if subnet_alerts:
+            alert_section = "🚨 ADVERTENCIA DE FALLO EN LA RED! 🚨\n"
+            for alert in subnet_alerts:
+                alert_section += f"{alert}\n"
+            alert_section += "\n"
+        else:
+            alert_section = ""
+        
+        # Mensaje principal
+        message = f"""{alert_section}📡 REPORTE ARP ACTIVAS
 🎯 Dispositivo: {target_ip}
 📋 Tipo: {device_type.upper()}
 ⏰ Fecha: {timestamp}
