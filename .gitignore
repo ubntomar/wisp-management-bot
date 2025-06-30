@@ -49,3 +49,5 @@ build/
 *.seed.js
 
 telefonos.txt
+
+.env

@@ -122,5 +122,22 @@ npm install pm2@latest -g
   pm2 logs <nombre_del_proceso>
   ```
 
+
+# Uso básico con WhatsApp automático
+python arp_extractor.py 192.168.1.1
+
+# Especificar tipo de dispositivo
+python arp_extractor.py 192.168.1.254 mikrotik
+
+# No enviar WhatsApp
+python arp_extractor.py 192.168.1.1 auto --no-whatsapp
+
+# Enviar a número específico de WhatsApp
+python arp_extractor.py 192.168.1.1 auto --whatsapp-target 573161234567
+
+# Combinación de opciones
+python arp_extractor.py 192.168.26.120 mikrotik --whatsapp-target 573162950915
+
+
 Con estos pasos, tus scripts `index.js` y `device_api.js` estarán gestionados por PM2, asegurando su disponibilidad continua incluso después de reinicios del servidor.
 
