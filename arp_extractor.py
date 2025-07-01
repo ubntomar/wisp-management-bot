@@ -323,7 +323,7 @@ class ARPExtractor:
         
         # Lista de IPs (limitada para WhatsApp)
         message += "\n📋 Direcciones IP:"
-        max_ips_to_show = 20  # Limitar para evitar mensajes muy largos
+        max_ips_to_show = 6  # Limitar para evitar mensajes muy largos
         
         for i, ip in enumerate(arp_list[:max_ips_to_show], 1):
             message += f"\n  {i:2d}. {ip}"
