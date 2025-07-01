@@ -240,8 +240,13 @@ class ARPExtractor:
         sorted_subnets = sorted(subnet_count.items(), key=lambda x: x[1], reverse=True)
         return [f"{subnet}: {count} dispositivos" for subnet, count in sorted_subnets]
 
-    def check_subnet_alerts(self, summary):
-        """Verifica si hay alertas en las subredes críticas"""
+    def check_subnet_alerts(self, summary, target_ip):
+        """Verifica si hay alertas en las subredes críticas - SOLO para 192.168.26.1"""
+        
+        # Solo aplicar validación para la IP específica
+        if target_ip != '192.168.26.1':
+            return None
+            
         if not summary:
             return None
             
@@ -292,8 +297,8 @@ class ARPExtractor:
         device_type = result['device_type']
         summary = result.get('summary', [])
         
-        # Verificar alertas de subredes críticas
-        subnet_alerts = self.check_subnet_alerts(summary)
+        # Verificar alertas de subredes críticas (solo para 192.168.26.1)
+        subnet_alerts = self.check_subnet_alerts(summary, target_ip)
         
         # Encabezado con alertas si existen
         if subnet_alerts:
@@ -318,7 +323,7 @@ class ARPExtractor:
         
         # Lista de IPs (limitada para WhatsApp)
         message += "\n📋 Direcciones IP:"
-        max_ips_to_show = 6  # Limitar para evitar mensajes muy largos
+        max_ips_to_show = 20  # Limitar para evitar mensajes muy largos
         
         for i, ip in enumerate(arp_list[:max_ips_to_show], 1):
             message += f"\n  {i:2d}. {ip}"
