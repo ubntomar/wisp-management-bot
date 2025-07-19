@@ -1,6 +1,28 @@
 #!/bin/bash
 
-# Configuración por defecto
+
+printf "Iniciando el script run_arp_extractor_flexible.sh\n"
+printf "Este script debe se conecta a un endpoint de WhatsApp para enviar mensajes.\n"
+printf "Asegúrate de que el VPS 45.61.59.204 asterisk  esté en funcionamiento y accesible.\n"
+printf "OJO (omar@botandusa:~/wisp-management-bot) Pm2 list : lista und enpoint pero del 316295!!! NO útil para este proyecyo!\n"
+
+
+echo "--------------------------------------------------------------------------------------------------------------------" >> logs/arp_extractor.log
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Iniciando run_arp_extractor_flexible.sh" >> logs/arp_extractor.log
+echo "Asegúrate de que el VPS 45.61.59.204  ssh asterisk  esté en funcionamiento y accesible.\n" >> logs/arp_extractor.log
+echo "Pm2 list lista und enpoint pero del 316295!!! NO útil para este proyecyo!" >> logs/arp_extractor.log
+
+
+printf "Comprobando, timeout 5 nc -zv 45.61.59.204 8050  ,conexión al VPS 45.61.59.204 (asterisk)  en el puerto 8050...\n"
+timeout 5 nc -zv 45.61.59.204 8050
+if [ $? -ne 0 ]; then
+    printf "Error: No se pudo conectar al VPS 45.61.59.204 en el puerto 8050.\n"
+    printf "Saliendo del script.\n"
+    echo "Error: No se pudo conectar al VPS 45.61.59.204 (ssh asterisk) en el puerto 8050." >> logs/arp_extractor.log
+    exit 1
+fi
+
+# Configuración por defecto--
 DEFAULT_IP="192.168.26.1"
 DEFAULT_TYPE="auto"
 
